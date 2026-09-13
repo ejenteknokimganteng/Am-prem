@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alight Motion Premium Manager</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+        body { 
+            background-color: #0f172a; 
+            color: #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        .container {
+            background-color: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+        h2 { color: #38bdf8; margin-bottom: 8px; }
+        p.subtitle { color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 5px; }
+        input[type="email"], input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background-color: #0f172a;
+            color: #fff;
+            outline: none;
+            font-size: 0.9rem;
+        }
+        input:focus { border-color: #38bdf8; }
+        button {
+            width: 100%;
+            padding: 11px;
+            background-color: #0284c7;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 5px;
+        }
+        button:hover { background-color: #0369a1; }
+        button:disabled { background-color: #475569; cursor: not-allowed; }
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid #475569;
+            color: #94a3b8;
+            margin-top: 10px;
+        }
+        .btn-secondary:hover { background-color: #334155; color: #fff; }
+        #result { margin-top: 15px; font-size: 0.85rem; text-align: center; word-break: break-word; }
+        .success-msg { color: #4ade80; font-weight: bold; }
+        .error-msg { color: #f87171; font-weight: bold; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>AM Prem Manager</h2>
+        
+        <!-- STEP 1: Request Magic Link -->
+        <div id="stepRequest">
+            <p class="subtitle">Masukkan email akun Alight Motion untuk menerima magic link login.</p>
+            <form id="magicLinkForm">
+                <div class="input-group">
+                    <label for="email">Email Alight Motion</label>
+                    <input type="email" id="email" placeholder="contoh@gmail.com" required>
+                </div>
+                <button type="submit" id="btnSubmit">Kirim Magic Link</button>
+            </form>
+        </div>
+
+        <!-- STEP 2: Apply Premium Link -->
+        <div id="stepVerify" class="hidden">
+            <p class="subtitle">Salin URL/link dari email masuk, lalu tempel di bawah ini untuk mengaktifkan premium.</p>
+            <form id="verifyForm">
+                <div class="input-group">
+                    <label for="verifyEmail">Email</label>
+                    <input type="email" id="verifyEmail" readonly style="opacity: 0.7;">
+                </div>
+                <div class="input-group">
+                    <label for="magicUrl">URL / Link dari Email</label>
+                    <input type="text" id="magicUrl" placeholder="https://alight-creative.firebaseapp.com/..." required>
+                </div>
+                <button type="submit" id="btnVerify">Apply Premium</button>
+                <button type="button" class="btn-secondary" id="btnBack">Kirim Ulang Email</button>
+            </form>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const stepRequest = document.getElementById('stepRequest');
+        const stepVerify = document.getElementById('stepVerify');
+        const resultDiv = document.getElementById('result');
+
+        const magicLinkForm = document.getElementById('magicLinkForm');
+        const verifyForm = document.getElementById('verifyForm');
+        const btnSubmit = document.getElementById('btnSubmit');
+        const btnVerify = document.getElementById('btnVerify');
+        const btnBack = document.getElementById('btnBack');
+
+        // Step 1: Kirim Magic Link (Endpoint: /v1/magic-link?email=)
+        magicLinkForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            if (!email) return;
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerText = 'Memproses...';
+            resultDiv.innerHTML = '';
+
+            const endpoint = `https://api.kyzznekoo.my.id/api/alightmotion/v1/magic-link?email=${encodeURIComponent(email)}`;
+
+            try {
+                const response = await fetch(endpoint, { method: 'GET' });
+                const rawText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(rawText);
+                } catch (jsonErr) {
+                    resultDiv.innerHTML = `<p class="error-msg">Server merespon dengan format non-JSON.</p>`;
+                    return;
+                }
+
+                if (response.ok && data.status) {
+                    document.getElementById('verifyEmail').value = email;
+                    stepRequest.classList.add('hidden');
+                    stepVerify.classList.remove('hidden');
+                    resultDiv.innerHTML = `<p class="success-msg">${data.data?.message || data.message || 'Magic link berhasil dikirim!'}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error-msg">${data.message || 'Gagal mengirim magic link.'}</p>`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<p class="error-msg">Gagal terhubung ke API server.</p>`;
+                console.error(err);
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = 'Kirim Magic Link';
+            }
+        });
+
+        // Step 2: Apply Premium (Endpoint: /v1/applyPremium?email=&link=)
+        verifyForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('verifyEmail').value.trim();
+            const link = document.getElementById('magicUrl').value.trim();
+
+            btnVerify.disabled = true;
+            btnVerify.innerText = 'Memproses...';
+            resultDiv.innerHTML = '';
+
+            const applyEndpoint = `https://api.kyzznekoo.my.id/api/alightmotion/v1/applyPremium?email=${encodeURIComponent(email)}&link=${encodeURIComponent(link)}`;
+
+            try {
+                const response = await fetch(applyEndpoint, { method: 'GET' });
+                const rawText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(rawText);
+                } catch (jsonErr) {
+                    resultDiv.innerHTML = `<p class="error-msg">Server merespon dengan format non-JSON.</p>`;
+                    return;
+                }
+
+                if (response.ok && data.status) {
+                    resultDiv.innerHTML = `<p class="success-msg">${data.data?.message || data.message || 'Berhasil mengaktifkan Premium!'}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error-msg">${data.message || 'Gagal memproses link.'}</p>`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<p class="error-msg">Gagal memproses request. Pastikan jaringan stabil.</p>`;
+                console.error(err);
+            } finally {
+                btnVerify.disabled = false;
+                btnVerify.innerText = 'Apply Premium';
+            }
+        });
+
+        // Tombol Kembali
+        btnBack.addEventListener('click', () => {
+            stepVerify.classList.add('hidden');
+            stepRequest.classList.remove('hidden');
+            resultDiv.innerHTML = '';
+        });
+    </script>
+
+</body>
+</html>
